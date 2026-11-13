@@ -13,7 +13,10 @@ Le moteur de plugins partagé par [OpenCloudApp](https://github.com/Isno-Open/Op
 - **un plugin en échec est écarté et signalé, il ne bloque jamais l'application** ;
 - du code venu d'ailleurs n'est pas pris sur parole : chaque champ est vérifié, l'icône ne peut pas porter
   de balisage, l'identifiant doit être celui du dossier ;
-- les réglages **déclarés** : le plugin décrit ses champs, l'application dessine l'écran, le plugin valide ;
+- les réglages **déclarés** : le plugin décrit ses champs, l'application dessine l'écran, le plugin valide.
+  Types : case, nombre, choix, texte, secret, couleur, image, et `json` pour un réglage structuré (liste,
+  objet) que le plugin valide entièrement ;
+- **l'écran de réglages** : le composant Svelte 5 `SettingsForm.svelte`, générique (voir plus bas) ;
 - les plugins actifs : liste par défaut, plugins actifs d'office, catégories à choix unique.
 
 **Ce qui reste dans chaque application, sous forme d'`api` :** ce que les plugins peuvent y apporter.
@@ -48,13 +51,28 @@ const host = createPluginHost<Api, Category>({
 const report = await host.load(["carburants"]);   // { loaded, failed }
 ```
 
+## L'écran de réglages
+
+```svelte
+<script lang="ts">
+  import SettingsForm from '@isno-open/plugin-host/svelte/SettingsForm.svelte';
+  let { data } = $props();   // { fields, values } rendus par host.settingsForm(id)
+  const save = async (values) => (await fetch(`/admin/plugins/${data.id}`, { method: 'POST', body: JSON.stringify(values) })).ok;
+</script>
+
+<SettingsForm fields={data.fields} values={data.values} lang="fr" onSave={save} />
+```
+
+L'application fournit l'enregistrement, et peut remplacer les textes (`text`) et le style : variables CSS
+`--oph-*` et classes `oph-*`. Le composant n'importe rien de Node : il tourne dans le navigateur.
+
 ## Versions
 
 Chaque application fige la version qu'elle utilise (étiquette git). Une évolution voulue par l'une ne
 casse donc jamais l'autre : elle passe à la nouvelle version quand ses propres tests le permettent.
 
 ```json
-"@isno-open/plugin-host": "github:Isno-Open/OpenPluginHost#v0.1.0"
+"@isno-open/plugin-host": "github:Isno-Open/OpenPluginHost#v0.2.0"
 ```
 
 ## Développer
@@ -62,6 +80,7 @@ casse donc jamais l'autre : elle passe à la nouvelle version quand ses propres 
 ```sh
 npm install
 npm test
+npm run check                 # types et composant Svelte
 sh scripts/install-hooks.sh   # refuse tout commit qui contient un secret
 ```
 

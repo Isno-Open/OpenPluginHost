@@ -14,8 +14,9 @@ export type LocalizedText = { fr: string; en: string };
  *  (data: URL). Jamais de balisage : un plugin ne peut pas injecter de HTML. */
 export type Icon = { glyph: string } | { path: string } | { src: string };
 
-/** Nature d'un réglage, donc du contrôle dessiné par l'application. */
-export const SETTING_KIND = { toggle: "toggle", number: "number", choice: "choice", text: "text", secret: "secret", color: "color", image: "image" } as const;
+/** Nature d'un réglage, donc du contrôle dessiné par l'application. `json` : un réglage structuré (une
+ *  liste, un objet) saisi en JSON, que le plugin valide entièrement dans son `fromForm`. */
+export const SETTING_KIND = { toggle: "toggle", number: "number", choice: "choice", text: "text", secret: "secret", color: "color", image: "image", json: "json" } as const;
 export type SettingKind = (typeof SETTING_KIND)[keyof typeof SETTING_KIND];
 
 /** Forme d'un réglage texte : libre, ou adresse web (le navigateur aide à la saisie ; le plugin valide). */
@@ -31,8 +32,17 @@ export type SettingField =
   // secret : valeur créée et gardée par le plugin, MONTRÉE (masquée, à copier) mais jamais saisie ni renvoyée
   | (FieldBase & { kind: typeof SETTING_KIND.secret })
   | (FieldBase & { kind: typeof SETTING_KIND.color })
-  | (FieldBase & { kind: typeof SETTING_KIND.image; square?: boolean });
+  | (FieldBase & { kind: typeof SETTING_KIND.image; square?: boolean })
+  // json : texte JSON (valeur du formulaire = le texte) ; rows : hauteur de la zone de saisie
+  | (FieldBase & { kind: typeof SETTING_KIND.json; rows?: number });
 export type SettingValue = boolean | number | string;
+
+/** Taille maximale d'une image (logo, icône) en data: URL : environ 100 Ko de fichier. */
+export const IMAGE_MAX_CHARS = 140_000;
+/** Types d'image acceptés. */
+export const IMAGE_TYPES = ["image/png", "image/webp", "image/svg+xml"] as const;
+/** Plus petite icône acceptée (côté, en pixels) : en dessous, floue sur un écran d'accueil. */
+export const ICON_MIN_PX = 48;
 
 /** Réglages d'un plugin : il les DÉCLARE, l'application dessine l'écran (même cadre pour tous) et le
  *  plugin valide. Un plugin n'a donc pas à livrer d'interface. */

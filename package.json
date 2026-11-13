@@ -1,20 +1,43 @@
 {
   "name": "@isno-open/plugin-host",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Moteur de plugins partagé par OpenCloudApp et Winnza : format, chargement, réglages déclarés.",
   "license": "AGPL-3.0-only",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": "./dist/index.js", "./contract": "./dist/contract.js" },
-  "files": ["dist"],
+  "exports": {
+    ".": "./dist/index.js",
+    "./contract": "./dist/contract.js",
+    "./form-text": "./dist/form-text.js",
+    "./svelte/SettingsForm.svelte": {
+      "svelte": "./svelte/SettingsForm.svelte",
+      "default": "./svelte/SettingsForm.svelte"
+    }
+  },
+  "files": [
+    "dist",
+    "svelte"
+  ],
   "scripts": {
-    "build": "tsc",
-    "prepare": "tsc",
-    "test": "rm -rf dist-test && tsc -p tsconfig.test.json && node --test \"dist-test/**/*.test.js\""
+    "build": "node node_modules/@typescript/native/bin/tsc",
+    "prepare": "node node_modules/@typescript/native/bin/tsc",
+    "test": "rm -rf dist-test && node node_modules/@typescript/native/bin/tsc -p tsconfig.test.json && node --test \"dist-test/**/*.test.js\"",
+    "check": "node node_modules/@typescript/native/bin/tsc && svelte-check --tsconfig svelte/tsconfig.json --fail-on-warnings"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
-    "typescript": "7.0.2"
+    "@typescript/native": "npm:typescript@7.0.2",
+    "typescript": "6.0.3",
+    "svelte": "5.57.3",
+    "svelte-check": "4.7.8"
+  },
+  "peerDependencies": {
+    "svelte": "^5.57.3"
+  },
+  "peerDependenciesMeta": {
+    "svelte": {
+      "optional": true
+    }
   }
 }
