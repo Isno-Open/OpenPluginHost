@@ -3,6 +3,11 @@
 Le moteur de plugins partagé par [OpenCloudApp](https://github.com/Isno-Open/OpenCloudApp) et
 [Winnza](https://github.com/Shad107/winnza). Extrait d'OpenCloudApp.
 
+**Démonstration complète : [Winnza](https://github.com/Shad107/winnza).** Ses plugins de données
+(carburants, charges cachées, site) sont chargés par ce moteur, leurs réglages vivent en base, et son
+administration (`/admin`) montre l'écran de réglages partagé : liste des plugins, activation, réglages
+validés par chaque plugin avant d'être enregistrés.
+
 ## Ce qu'il fait, et ce qu'il ne fait pas
 
 **Partagé ici, le moteur seulement :**
