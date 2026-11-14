@@ -98,3 +98,53 @@ test("icône : jamais de balisage ni d'image d'ailleurs", () => {
   assert.equal(asIcon({ src: "https://exemple.org/x.png" }), null);
   assert.equal(asIcon({ glyph: "trop long ici" }), null);
 });
+
+// Champs propres à l'application : ici un thème appliqué à l'activation (texte court), vérifié par elle.
+type Extra = { appliesTheme?: string };
+const extraOf = (raw: Readonly<Record<string, unknown>>): Extra =>
+  typeof raw.appliesTheme === "string" && /^[a-z-]{1,30}$/.test(raw.appliesTheme) ? { appliesTheme: raw.appliesTheme } : {};
+
+test("champs propres : vérifiés par l'application, jamais à la place des champs communs", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "oph-"));
+  const write = (id: string, src: string) => { mkdirSync(join(dir, id)); writeFileSync(join(dir, id, "index.js"), src); };
+  write("theme", `export default { id: "theme", title: "T", appliesTheme: "sombre", register() {} };`);
+  write("louche", `export default { id: "louche", title: "L", appliesTheme: "<script>", register() {} };`);
+  const added: string[] = [];
+  const host = createPluginHost<Api, Cat, Extra>({
+    builtins: { integre: { ...plugin("integre"), appliesTheme: "clair" } },
+    catalogDir: dir, categories: CAT, defaultCategory: "other",
+    makeApi: ({ id }) => ({ add: (w) => added.push(`${id}:${w}`), who: id }),
+    storedSettings: () => undefined, log: () => {},
+    // une application qui tenterait de remplacer l'identifiant ou register par ses champs propres
+    extra: (raw) => ({ ...extraOf(raw), id: "pirate", register: () => { added.push("pirate"); } }) as Extra,
+  });
+  await host.load(["integre", "theme", "louche"]);
+  assert.equal(host.plugin("integre")?.appliesTheme, "clair", "un intégré porte ses champs tels quels");
+  assert.equal(host.plugin("theme")?.appliesTheme, "sombre", "un plugin du catalogue porte le champ vérifié");
+  assert.equal(host.plugin("louche")?.appliesTheme, undefined, "un champ refusé par l'application est omis");
+  assert.equal(host.plugin("theme")?.id, "theme", "les champs propres ne remplacent pas l'identifiant");
+  assert.ok(!added.includes("pirate"), "ni register");
+  assert.equal(host.plugin("absent"), null);
+});
+
+test("peek lit une déclaration sans enregistrer le plugin", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "oph-"));
+  mkdirSync(join(dir, "dormant"));
+  writeFileSync(join(dir, "dormant", "index.js"),
+    `export default { id: "dormant", title: "D", category: "app", appliesTheme: "nuit", register(api) { api.add("reveil"); } };`);
+  mkdirSync(join(dir, "menteur"));
+  writeFileSync(join(dir, "menteur", "index.js"), `export default { id: "autre", title: "x", register() {} };`);
+  const added: string[] = [];
+  const host = createPluginHost<Api, Cat, Extra>({
+    builtins: {}, catalogDir: dir, categories: CAT, defaultCategory: "other",
+    makeApi: ({ id }) => ({ add: (w) => added.push(`${id}:${w}`), who: id }),
+    storedSettings: () => undefined, log: () => {}, extra: extraOf,
+  });
+  const p = await host.peek("dormant");
+  assert.deepEqual([p?.category, p?.appliesTheme], ["app", "nuit"]);
+  assert.deepEqual(added, [], "rien n'est enregistré");
+  assert.equal(host.installed().length, 0);
+  assert.equal(await host.peek("menteur"), null, "un module qui ment sur son identifiant est refusé");
+  assert.equal(await host.peek("../evasion"), null);
+  assert.equal(await host.categoryOf("dormant"), "app");
+});

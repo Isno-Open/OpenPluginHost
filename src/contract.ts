@@ -56,8 +56,13 @@ export type PluginSettings = {
   preview?(input: Record<string, unknown>): unknown;
 };
 
-/** Un plugin. `Api` : ce que l'application lui donne ; `Category` : les catégories qu'elle reconnaît. */
-export type Plugin<Api, Category extends string = string> = {
+/** Un plugin. `Api` : ce que l'application lui donne ; `Category` : les catégories qu'elle reconnaît ;
+ *  `Extra` : les champs propres à l'application (ex. le thème qu'un plugin applique à son activation),
+ *  que l'application vérifie elle-même (option `extra` de l'hôte). */
+export type Plugin<Api, Category extends string = string, Extra extends object = {}> = PluginBase<Api, Category> & Extra;
+
+/** Ce que tout plugin déclare, quelle que soit l'application. */
+export type PluginBase<Api, Category extends string = string> = {
   /** identifiant, égal au nom de son dossier : PLUGIN_ID_RE */
   id: string;
   title: LocalizedText;

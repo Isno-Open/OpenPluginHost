@@ -56,6 +56,24 @@ const host = createPluginHost<Api, Category>({
 const report = await host.load(["carburants"]);   // { loaded, failed }
 ```
 
+## Champs propres à l'application
+
+Une application peut attendre de ses plugins des champs que le moteur ne connaît pas : OpenCloudApp, par
+exemple, le thème qu'un plugin applique à son activation. Elle les déclare en troisième paramètre de type
+et les **vérifie** elle-même avec l'option `extra`, appelée sur la déclaration brute de chaque plugin venu
+du catalogue. Ce qui ne passe pas est omis ; ces champs ne remplacent jamais les champs communs (`id`,
+`register`...). Les plugins intégrés, typés, les portent tels quels.
+
+```ts
+type Extra = { appliesTheme?: string };
+const host = createPluginHost<Api, Category, Extra>({
+  // ...
+  extra: (raw) => (typeof raw.appliesTheme === "string" ? { appliesTheme: raw.appliesTheme } : {}),
+});
+host.plugin("sombre")?.appliesTheme;          // plugin chargé, champs propres compris
+(await host.peek("sombre"))?.appliesTheme;    // déclaration lue SANS enregistrer le plugin
+```
+
 ## L'écran de réglages
 
 ```svelte
@@ -77,7 +95,7 @@ Chaque application fige la version qu'elle utilise (étiquette git). Une évolut
 casse donc jamais l'autre : elle passe à la nouvelle version quand ses propres tests le permettent.
 
 ```json
-"@isno-open/plugin-host": "github:Isno-Open/OpenPluginHost#v0.2.0"
+"@isno-open/plugin-host": "github:Isno-Open/OpenPluginHost#v0.3.0"
 ```
 
 ## Développer

@@ -8,9 +8,9 @@ import { pathToFileURL } from "node:url";
 import { PLUGIN_ID_RE, type Icon, type LocalizedText, type Plugin, type PluginInfo, type PluginSettings, type SettingValue } from "./contract.js";
 import { enabledIn, withPluginOff, withPluginOn, type EnabledRules, type EnabledState } from "./enabled.js";
 
-export type HostOptions<Api, Category extends string> = {
+export type HostOptions<Api, Category extends string, Extra extends object = {}> = {
   /** plugins livrés avec l'application, par identifiant */
-  builtins: Readonly<Record<string, Plugin<Api, Category>>>;
+  builtins: Readonly<Record<string, Plugin<Api, Category, Extra>>>;
   /** dossier des plugins copiés depuis un catalogue : <dossier>/<id>/index.js */
   catalogDir?: string;
   /** modules chargés en plus, pour le développement d'un plugin (chemins ou URL) */
@@ -23,6 +23,10 @@ export type HostOptions<Api, Category extends string> = {
   makeApi: (plugin: { id: string }) => Api;
   /** réglages enregistrés d'un plugin (ce que son `toForm` relira) */
   storedSettings: (id: string) => unknown;
+  /** champs propres à l'application, lus dans la déclaration brute d'un plugin venu d'ailleurs et
+   *  VÉRIFIÉS ici (ce qui ne passe pas est omis, ou lève une erreur pour écarter le plugin). Sans cette
+   *  option, un plugin du catalogue n'en porte aucun. Les intégrés, typés, les portent tels quels. */
+  extra?: (raw: Readonly<Record<string, unknown>>, id: string) => Extra;
   /** où signaler un plugin écarté */
   log?: (message: string) => void;
 };
@@ -44,21 +48,26 @@ export function asIcon(v: unknown): Icon | null {
   return null;
 }
 
-export function createPluginHost<Api, Category extends string>(opts: HostOptions<Api, Category>) {
+export function createPluginHost<Api, Category extends string, Extra extends object = {}>(opts: HostOptions<Api, Category, Extra>) {
   const log = opts.log ?? ((m: string) => console.error(m));
   const isCategory = (v: unknown): v is Category => opts.categories.some((c) => c === v);
   const installed: PluginInfo<Category>[] = [];
+  const loadedById = new Map<string, Plugin<Api, Category, Extra>>();
   const settingsById = new Map<string, PluginSettings>();
   let loading: Promise<LoadReport> | null = null;
 
   /** Un module chargé a-t-il la forme d'un plugin ? (export par défaut, ou exports nommés) */
-  function asPlugin(m: Obj, fallbackId: string): Plugin<Api, Category> {
+  function asPlugin(m: Obj, fallbackId: string): Plugin<Api, Category, Extra> {
     const c = isObj(m.default) ? m.default : m;
     const register = c.register;
     if (typeof register !== "function") throw new Error("pas de register(api)");
     const icon = asIcon(c.icon);
+    const id = typeof c.id === "string" ? c.id : fallbackId;
+    // les champs propres viennent EN PREMIER : ils ne peuvent pas remplacer les champs communs vérifiés
+    const extra = (opts.extra ? opts.extra(c, id) : {}) as Extra;
     return {
-      id: typeof c.id === "string" ? c.id : fallbackId,
+      ...extra,
+      id,
       title: isText(c.title) ? c.title : typeof c.title === "string" ? { fr: c.title, en: c.title } : { fr: fallbackId, en: fallbackId },
       ...(isText(c.description) ? { description: c.description } : {}),
       ...(isSettings(c.settings) ? { settings: c.settings } : {}),
@@ -68,20 +77,21 @@ export function createPluginHost<Api, Category extends string>(opts: HostOptions
     };
   }
 
-  async function importCatalogPlugin(id: string): Promise<Plugin<Api, Category>> {
+  async function importCatalogPlugin(id: string): Promise<Plugin<Api, Category, Extra>> {
     if (!opts.catalogDir) throw new Error("aucun dossier de catalogue configuré");
     return asPlugin((await import(/* @vite-ignore */ pathToFileURL(join(opts.catalogDir, id, "index.js")).href)) as Obj, id);
   }
 
-  const infoOf = (p: Plugin<Api, Category>, builtin: boolean): PluginInfo<Category> => {
+  const infoOf = (p: Plugin<Api, Category, Extra>, builtin: boolean): PluginInfo<Category> => {
     const icon = asIcon(p.icon);
     return { id: p.id, title: p.title, ...(p.description ? { description: p.description } : {}), ...(icon ? { icon } : {}),
       category: p.category ?? opts.defaultCategory, builtin, configurable: !!p.settings };
   };
 
-  async function registerOne(p: Plugin<Api, Category>, builtin: boolean): Promise<void> {
+  async function registerOne(p: Plugin<Api, Category, Extra>, builtin: boolean): Promise<void> {
     await p.register(opts.makeApi({ id: p.id }));
     installed.push(infoOf(p, builtin));
+    loadedById.set(p.id, p);
     if (p.settings) settingsById.set(p.id, p.settings);
   }
 
@@ -121,17 +131,29 @@ export function createPluginHost<Api, Category extends string>(opts: HostOptions
    *  ses réglages avant de l'activer). */
   const settingsOf = (id: string): PluginSettings | undefined => settingsById.get(id) ?? opts.builtins[id]?.settings;
 
+  /** Déclaration d'un plugin (chargé, intégré ou copié depuis le catalogue), SANS l'enregistrer : ce
+   *  qu'il déclarerait s'il était activé (catégorie, champs propres). null : introuvable ou invalide. */
+  async function peek(id: string): Promise<Plugin<Api, Category, Extra> | null> {
+    const known = loadedById.get(id) ?? opts.builtins[id];
+    if (known) return known;
+    if (!PLUGIN_ID_RE.test(id) || !opts.catalogDir) return null;
+    try {
+      const p = await importCatalogPlugin(id);
+      return p.id === id ? p : null;
+    } catch { return null; }
+  }
+
   /** Catégorie d'un plugin (chargé, intégré ou copié depuis le catalogue), sans l'enregistrer. */
   async function categoryOf(id: string): Promise<Category> {
-    const known = installed.find((p) => p.id === id)?.category ?? opts.builtins[id]?.category;
-    if (known) return known;
-    if (!PLUGIN_ID_RE.test(id) || !opts.catalogDir) return opts.defaultCategory;
-    try { return (await importCatalogPlugin(id)).category ?? opts.defaultCategory; } catch { return opts.defaultCategory; }
+    return (await peek(id))?.category ?? opts.defaultCategory;
   }
 
   return {
     load,
     installed: (): readonly PluginInfo<Category>[] => installed,
+    /** le plugin chargé, champs propres compris (null : pas chargé) */
+    plugin: (id: string): Plugin<Api, Category, Extra> | null => loadedById.get(id) ?? null,
+    peek,
     /** fiche d'un intégré, chargé ou non */
     builtinInfo: (id: string): PluginInfo<Category> | null => { const p = opts.builtins[id]; return p ? infoOf(p, true) : null; },
     /** champs et valeurs courantes de l'écran de réglages (null : pas de réglages) */
@@ -168,4 +190,4 @@ export function createPluginHost<Api, Category extends string>(opts: HostOptions
   };
 }
 
-export type PluginHost<Api, Category extends string> = ReturnType<typeof createPluginHost<Api, Category>>;
+export type PluginHost<Api, Category extends string, Extra extends object = {}> = ReturnType<typeof createPluginHost<Api, Category, Extra>>;
