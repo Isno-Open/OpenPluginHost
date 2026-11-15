@@ -177,6 +177,9 @@
   .oph-under { margin-left: 24px; }
   .oph-label { font-weight: 600; }
   .oph-multi { display: flex; flex-direction: column; gap: 6px; }
+  /* une case garde sa taille native ; c'est la ligne entiere (libelle compris) qui fait 44 px a toucher */
+  .oph-check { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+  .oph-check input { width: 20px; height: 20px; margin: 0; accent-color: var(--oph-accent, currentColor); }
   .oph-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .oph-hint { font-size: 0.9em; color: var(--oph-muted, #5f6670); }
   .oph-error { font-size: 0.9em; color: var(--oph-danger, #b42318); }
@@ -185,5 +188,5 @@
   .oph-square { width: 64px; height: 64px; object-fit: contain; }
   .oph-actions { display: flex; justify-content: flex-end; align-items: center; gap: 14px; }
   .oph-btn, .oph-submit { min-height: 44px; cursor: pointer; }
-  input, select, textarea { min-height: 44px; padding: 8px 10px; border-radius: var(--oph-radius, 10px); border: 1px solid var(--oph-border, #cfd4dc); background: var(--oph-input, #fff); color: inherit; font: inherit; }
+  input:not([type="checkbox"]), select, textarea { min-height: 44px; padding: 8px 10px; border-radius: var(--oph-radius, 10px); border: 1px solid var(--oph-border, #cfd4dc); background: var(--oph-input, #fff); color: inherit; font: inherit; }
 </style>
