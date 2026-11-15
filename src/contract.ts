@@ -15,19 +15,23 @@ export type LocalizedText = { fr: string; en: string };
 export type Icon = { glyph: string } | { path: string } | { src: string };
 
 /** Nature d'un réglage, donc du contrôle dessiné par l'application. `json` : un réglage structuré (une
- *  liste, un objet) saisi en JSON, que le plugin valide entièrement dans son `fromForm`. */
-export const SETTING_KIND = { toggle: "toggle", number: "number", choice: "choice", text: "text", secret: "secret", color: "color", image: "image", json: "json" } as const;
+ *  liste, un objet) saisi en JSON, que le plugin valide entièrement dans son `fromForm`. `multi` :
+ *  plusieurs choix cochés parmi des options (valeur = la liste des valeurs cochées, dans l'ordre des
+ *  options). */
+export const SETTING_KIND = { toggle: "toggle", number: "number", choice: "choice", multi: "multi", text: "text", secret: "secret", color: "color", image: "image", json: "json" } as const;
 export type SettingKind = (typeof SETTING_KIND)[keyof typeof SETTING_KIND];
 
 /** Forme d'un réglage texte : libre, ou adresse web (le navigateur aide à la saisie ; le plugin valide). */
 export const TEXT_FORMAT = { plain: "plain", url: "url" } as const;
 export type TextFormat = (typeof TEXT_FORMAT)[keyof typeof TEXT_FORMAT];
 
+export type SettingOption = { value: string; label: LocalizedText };
 type FieldBase = { key: string; label: LocalizedText; hint?: LocalizedText; under?: string };   // under : case dont il dépend
 export type SettingField =
   | (FieldBase & { kind: typeof SETTING_KIND.toggle })
   | (FieldBase & { kind: typeof SETTING_KIND.number; min: number; max: number })
-  | (FieldBase & { kind: typeof SETTING_KIND.choice; options: readonly { value: string; label: LocalizedText }[] })
+  | (FieldBase & { kind: typeof SETTING_KIND.choice; options: readonly SettingOption[] })
+  | (FieldBase & { kind: typeof SETTING_KIND.multi; options: readonly SettingOption[] })
   | (FieldBase & { kind: typeof SETTING_KIND.text; format: TextFormat; maxLength: number; placeholder?: string })
   // secret : valeur créée et gardée par le plugin, MONTRÉE (masquée, à copier) mais jamais saisie ni renvoyée
   | (FieldBase & { kind: typeof SETTING_KIND.secret })
@@ -35,7 +39,7 @@ export type SettingField =
   | (FieldBase & { kind: typeof SETTING_KIND.image; square?: boolean })
   // json : texte JSON (valeur du formulaire = le texte) ; rows : hauteur de la zone de saisie
   | (FieldBase & { kind: typeof SETTING_KIND.json; rows?: number });
-export type SettingValue = boolean | number | string;
+export type SettingValue = boolean | number | string | readonly string[];
 
 /** Taille maximale d'une image (logo, icône) en data: URL : environ 100 Ko de fichier. */
 export const IMAGE_MAX_CHARS = 140_000;

@@ -41,6 +41,14 @@
 
   $effect(() => { if (onChange) onChange(JSON.parse(JSON.stringify(form)) as Record<string, SettingValue>); });
 
+  // plusieurs choix : la valeur est la liste des cochés, gardée dans l'ordre des options (une seule forme)
+  const picked = (f: SettingField): readonly string[] => { const v = form[f.key]; return Array.isArray(v) ? v : []; };
+  function toggleOption(f: SettingField & { kind: typeof SETTING_KIND.multi }, value: string, on: boolean): void {
+    const now = new Set(picked(f));
+    if (on) now.add(value); else now.delete(value);
+    form[f.key] = f.options.map((o) => o.value).filter((v) => now.has(v));
+  }
+
   async function save(e: SubmitEvent): Promise<void> {
     e.preventDefault();
     // un JSON invalide est signalé avant l'envoi ; le plugin revalide de toute façon à l'enregistrement
@@ -109,7 +117,7 @@
         <label class="oph-check"><input type="checkbox" id={id(f)} disabled={blocked(f)}
           checked={form[f.key] === true} onchange={(e) => { form[f.key] = e.currentTarget.checked; }} /> {f.label[lang]}</label>
       {:else}
-        <label class="oph-label" for={id(f)}>{f.label[lang]}</label>
+        <label class="oph-label" id={`${id(f)}-l`} for={f.kind === SETTING_KIND.multi ? undefined : id(f)}>{f.label[lang]}</label>
         {#if f.kind === SETTING_KIND.number}
           <input id={id(f)} type="number" min={f.min} max={f.max} disabled={blocked(f)}
             value={String(form[f.key] ?? '')} oninput={(e) => { form[f.key] = e.currentTarget.value; }} />
@@ -117,6 +125,13 @@
           <select id={id(f)} disabled={blocked(f)} onchange={(e) => { form[f.key] = e.currentTarget.value; }}>
             {#each f.options as o (o.value)}<option value={o.value} selected={o.value === form[f.key]}>{o.label[lang]}</option>{/each}
           </select>
+        {:else if f.kind === SETTING_KIND.multi}
+          <div id={id(f)} class="oph-multi" role="group" aria-labelledby={`${id(f)}-l`}>
+            {#each f.options as o (o.value)}
+              <label class="oph-check"><input type="checkbox" value={o.value} disabled={blocked(f)} checked={picked(f).includes(o.value)}
+                onchange={(e) => toggleOption(f, o.value, e.currentTarget.checked)} /> {o.label[lang]}</label>
+            {/each}
+          </div>
         {:else if f.kind === SETTING_KIND.text}
           <input id={id(f)} type={f.format === TEXT_FORMAT.url ? 'url' : 'text'} maxlength={f.maxLength} placeholder={f.placeholder} spellcheck="false"
             disabled={blocked(f)} value={String(form[f.key] ?? '')} oninput={(e) => { form[f.key] = e.currentTarget.value; }} />
@@ -161,6 +176,7 @@
   .oph-field { display: flex; flex-direction: column; gap: 6px; }
   .oph-under { margin-left: 24px; }
   .oph-label { font-weight: 600; }
+  .oph-multi { display: flex; flex-direction: column; gap: 6px; }
   .oph-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .oph-hint { font-size: 0.9em; color: var(--oph-muted, #5f6670); }
   .oph-error { font-size: 0.9em; color: var(--oph-danger, #b42318); }

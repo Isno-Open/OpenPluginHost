@@ -19,7 +19,7 @@ validés par chaque plugin avant d'être enregistrés.
 - du code venu d'ailleurs n'est pas pris sur parole : chaque champ est vérifié, l'icône ne peut pas porter
   de balisage, l'identifiant doit être celui du dossier ;
 - les réglages **déclarés** : le plugin décrit ses champs, l'application dessine l'écran, le plugin valide.
-  Types : case, nombre, choix, texte, secret, couleur, image, et `json` pour un réglage structuré (liste,
+  Types : case, nombre, choix, choix multiples (`multi`, valeur = liste des cochés), texte, secret, couleur, image, et `json` pour un réglage structuré (liste,
   objet) que le plugin valide entièrement ;
 - **l'écran de réglages** : le composant Svelte 5 `SettingsForm.svelte`, générique (voir plus bas) ;
 - les plugins actifs : liste par défaut, plugins actifs d'office, catégories à choix unique.
