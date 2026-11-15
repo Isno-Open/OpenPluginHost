@@ -95,7 +95,7 @@ Chaque application fige la version qu'elle utilise (étiquette git). Une évolut
 casse donc jamais l'autre : elle passe à la nouvelle version quand ses propres tests le permettent.
 
 ```json
-"@isno-open/plugin-host": "github:Isno-Open/OpenPluginHost#v0.3.0"
+"@isno-open/plugin-host": "github:Isno-Open/OpenPluginHost#v0.3.1"
 ```
 
 ## Développer

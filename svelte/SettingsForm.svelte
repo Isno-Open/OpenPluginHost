@@ -54,7 +54,12 @@
     for (const f of fields) {
       if (f.kind === SETTING_KIND.secret) continue;   // montré, jamais renvoyé
       const v = form[f.key];
-      if (v !== undefined) out[f.key] = f.kind === SETTING_KIND.number ? Number(v) : v;
+      if (v === undefined) continue;
+      if (f.kind === SETTING_KIND.number) {
+        // un nombre efface n'est pas « 0 » (Number("") vaut 0) : il n'est pas envoye du tout
+        if (String(v).trim() === '') continue;
+        out[f.key] = Number(v);
+      } else out[f.key] = v;
     }
     try { status = (await onSave(out)) ? STATUS.ok : STATUS.err; } catch { status = STATUS.err; }
   }
